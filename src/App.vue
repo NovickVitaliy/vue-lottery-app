@@ -2,45 +2,33 @@
 import WinnersList from '@/components/WinnersList.vue'
 import UserForm from '@/components/UserForm.vue'
 import UserList from '@/components/UserList.vue'
-import { ref } from 'vue'
+import {onMounted, ref, useTemplateRef} from 'vue'
 import type { User } from '@/models/user'
+import {LocalRepository} from "@/helpers/local-repository";
 
-const users = ref<User[]>([
-  {
-    email: 'ivan.petrenko@gmail.com',
-    name: 'Ivan Petrenko',
-    phoneNumber: '+380951234567',
-    dateOfBirth: new Date(1995, 4, 23)
-  },
-  {
-    email: 'olena.kovalenko@gmail.com',
-    name: 'Olena Kovalenko',
-    phoneNumber: '+380971234567',
-    dateOfBirth: new Date(2000, 1, 15)
-  },
-  {
-    email: 'serhiy.shevchenko@gmail.com',
-    name: 'Serhiy Shevchenko',
-    phoneNumber: '+380931234567',
-    dateOfBirth: new Date(1988, 3, 7)
-  },
-  {
-    email: 'tatiana.sidorova@gmail.com',
-    name: 'Tatiana Sidorova',
-    phoneNumber: '+380981234567',
-    dateOfBirth: new Date(1992, 8, 19)
-  },
-  {
-    email: 'oleg.ivanov@gmail.com',
-    name: 'Oleg Ivanov',
-    phoneNumber: '+380955555555',
-    dateOfBirth: new Date(1985, 11, 31)
-  }
-])
+const users = ref<User[]>([]);
 const winners = ref<User[]>([])
+const usersKey: string = "vue-lottery-app.users";
+const buttonRef = ref<HTMLButtonElement | null>(null);
+onMounted(() => {
+  users.value = LocalRepository.get(usersKey, []);
+})
+
+const updateUsersInStorage = () => {
+  LocalRepository.set(usersKey, users.value);
+};
+
+const deleteUser = (user: User) => {
+  users.value = users.value.filter(u => u !== user);
+  updateUsersInStorage();
+}
+
 const addUser = (user: User) => {
-  console.log(user)
+  if(users.value.filter(u => u.email === user.email).length > 0){
+    buttonRef.value.click();
+  }
   users.value.push(user)
+  updateUsersInStorage();
 }
 
 const deleteWinner = (user: User) => {
@@ -62,6 +50,16 @@ const addNewWinner = () => {
   winners.value.push(winner)
 }
 
+const updateUser = (user: User) => {
+  console.log("In the start")
+  console.log(users.value);
+  users.value = users.value.filter(u => u.email !== user.email);
+  users.value.push(user);
+  console.log("Updated");
+  console.log(users.value);
+  updateUsersInStorage();
+};
+
 const some = ref<boolean>(true)
 </script>
 
@@ -74,9 +72,29 @@ const some = ref<boolean>(true)
       @newWinner="addNewWinner"
     ></WinnersList>
     <UserForm @addUser="addUser"></UserForm>
-    <UserList :users="users"></UserList>
+    <UserList @updateUser="updateUser" @deleteUser="deleteUser" :users="users"></UserList>
   </div>
-  <button @click="some = !some">{{ some ? 'Yes' : 'No' }}</button>
+
+  <button ref="buttonRef" type="button" class="d-none" data-bs-toggle="modal" data-bs-target="#exampleModal">
+  </button>
+
+  <div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h1 class="modal-title fs-5" id="exampleModalLabel">Conflict while adding new user</h1>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          User with given email already exists
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Ok</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </template>
 
 <style scoped></style>
