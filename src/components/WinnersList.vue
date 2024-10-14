@@ -8,10 +8,15 @@ defineProps<{
   usersCount: number
 }>();
 
-const emit = defineEmits(['new-winner', 'delete-winner']);
+const emit = defineEmits({
+  newWinner: () => true,
+  deleteWinner: (winner: User) => {
+    return winner;
+  }
+});
 
 const deleteWinner = (winner: User) => {
-  emit('delete-winner', {...winner});
+  emit('deleteWinner', {...winner});
 }
 </script>
 
@@ -25,7 +30,7 @@ const deleteWinner = (winner: User) => {
     </div>
     <div class="w-25 d-flex justify-content-center align-items-center">
       <VueButton button-type="button" button-style="primary" :disabled="winners.length === 3 || usersCount === 0"
-                 @onClick="$emit('new-winner')">New Winner
+                 @onClick="$emit('newWinner')">New Winner
       </VueButton>
     </div>
   </div>
