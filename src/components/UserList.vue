@@ -1,17 +1,21 @@
 <script setup lang="ts">
 import type {User} from "@/models/user";
-import VueButton from "@/components/VueButton.vue";
 import {computed, ref, watch} from "vue";
 import VueInput from "@/components/VueInput.vue";
-import UpdateUserForm from "@/components/UpdateUserForm.vue";
 import SearchBar from "@/components/SearchBar.vue";
+import VueModal from "@/components/VueModal.vue";
 
 const props = defineProps<{
   users: User[]
 }>();
 
 const refUsers = ref<User[]>([]);
-const userToUpdate = ref<User | null>(null);
+const userToUpdate = ref<User>({
+  email: '',
+  phoneNumber: '',
+  dateOfBirth: null,
+  name: ''
+});
 
 watch(
     () => props.users,
@@ -21,11 +25,18 @@ watch(
     {immediate: true}
 );
 
-const emit = defineEmits(['delete-user', 'update-user']);
-const updateUser = (user: User) => {
-  console.log("Accepted");
-  emit('update-user', user);
-}
+const emit = defineEmits({
+  deleteUser: (user: User) => {
+    return user !== null;
+  },
+  updateUser: (user: User) => {
+    return user && user.name.length > 0
+        && user.dateOfBirth && new Date(user.dateOfBirth) < new Date()
+        && /^\+?3?8?(0\d{9})$/.test(user.phoneNumber)
+        && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(user.email)
+  }
+});
+
 const userToDelete = ref<User>();
 
 const sortedByNameAsc = ref(false);
@@ -50,12 +61,84 @@ const handleSortByEmail = () => {
 }
 
 const handleSearch = (query: string) => {
+  query = query.trim();
   console.log(query);
-  if(!query){
+  if (!query) {
     refUsers.value = props.users;
   } else {
     refUsers.value = refUsers.value.filter(u => u.name.toLowerCase().includes(query.toLowerCase()));
   }
+}
+
+const isUpdateModalOpen = ref(false);
+const isDeleteModalOpen = ref(false);
+
+const openUpdateModal = () => (isUpdateModalOpen.value = true);
+const closeUpdateModal = () => (isUpdateModalOpen.value = false);
+
+const openDeleteModal = () => (isDeleteModalOpen.value = true);
+const closeDeleteModal = () => (isDeleteModalOpen.value = false);
+
+const handleSubmit = () => {
+  emit('updateUser', {...userToUpdate.value!});
+  formSubmitted.value = false;
+  clearValues();
+  clearTouchedFields();
+  closeUpdateModal();
+};
+
+const touchedFields = ref({
+  email: false,
+  dateOfBirth: false,
+  name: false,
+  phoneNumber: false
+});
+
+
+const formSubmitted = ref(false);
+
+const emailIsValid = computed(() => {
+  if (userToUpdate.value!.email.length === 0 && !touchedFields.value.email) {
+    return null;
+  }
+  const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return regex.test(userToUpdate.value!.email);
+});
+
+const phoneNumberIsValid = computed(() => {
+  if (userToUpdate.value!.phoneNumber.length === 0 && !touchedFields.value.phoneNumber) {
+    return null;
+  }
+  const regex = /^\+?3?8?(0\d{9})$/;
+  return regex.test(userToUpdate.value!.phoneNumber);
+})
+
+const usernameIsValid = computed(() => {
+  if (userToUpdate.value!.name.length === 0 && !touchedFields.value.name) {
+    return null;
+  }
+  return !!userToUpdate.value!.name;
+});
+
+const dateOfBirthIsValid = computed(() => {
+  if (!userToUpdate.value!.dateOfBirth && !touchedFields.value.dateOfBirth) {
+    return null;
+  }
+  return userToUpdate.value!.dateOfBirth && new Date(userToUpdate.value!.dateOfBirth) < new Date();
+});
+
+function clearValues() {
+  userToUpdate.value!.dateOfBirth = null;
+  userToUpdate.value!.name = '';
+  userToUpdate.value!.phoneNumber = '';
+  userToUpdate.value!.email = '';
+}
+
+function clearTouchedFields() {
+  touchedFields.value.phoneNumber = false;
+  touchedFields.value.email = false;
+  touchedFields.value.name = false;
+  touchedFields.value.dateOfBirth = false;
 }
 </script>
 
@@ -90,12 +173,10 @@ const handleSearch = (query: string) => {
         <td>{{ user.phoneNumber }}</td>
         <td>
           <div class="d-flex gap-1">
-            <button @click="userToDelete = user" type="button" class="btn btn-danger" data-bs-toggle="modal"
-                    data-bs-target="#deleteUserModal">
+            <button @click="() => {userToDelete = user; openDeleteModal();}" type="button" class="btn btn-danger" data-bs-toggle="modal">
               Delete
             </button>
-            <button @click="userToUpdate = user" type="button" class="btn btn-success" data-bs-toggle="modal"
-                    data-bs-target="#updateUserModal">
+            <button @click="() => {userToUpdate = user; openUpdateModal();}" type="button" class="btn btn-success" data-bs-toggle="modal">
               Update
             </button>
           </div>
@@ -103,25 +184,79 @@ const handleSearch = (query: string) => {
       </tr>
       </tbody>
     </table>
-    <div class="modal fade" id="deleteUserModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h1 class="modal-title fs-5" id="exampleModalLabel">Delete User</h1>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            Are you sure you want to delete user: {{ userToDelete?.name }}, {{ userToDelete?.email }}
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">No</button>
-            <button type="button" @click="$emit('delete-user', userToDelete)" data-bs-dismiss="modal" class="btn btn-primary">Yes</button>
-          </div>
-        </div>
-      </div>
-    </div>
 
-    <UpdateUserForm @updateUser="updateUser" :user="userToUpdate"></UpdateUserForm>
+    <VueModal id="deleteUser" :isOpen="isDeleteModalOpen" @close="closeDeleteModal">
+      <template #header>
+        <h5 class="modal-title" id="exampleModalLabel">Delete User</h5>
+      </template>
+      <template #body>
+        <div>
+          Are you sure you want to delete user: {{ userToDelete?.name }}, {{ userToDelete?.email }}
+        </div>
+      </template>
+      <template #footer>
+        <button type="button" @click="() => {$emit('deleteUser', userToDelete); closeDeleteModal();}"
+                class="btn btn-primary">Yes
+        </button>
+      </template>
+    </VueModal>
+
+    <VueModal id="updateModal" :isOpen="isUpdateModalOpen" @close="closeUpdateModal">
+      <template #header><h5 class="modal-title">Update User</h5></template>
+      <template #body>
+        <form @submit.prevent="handleSubmit">
+          <div class="mb-3">
+            <label for="name" class="form-label">Name</label>
+            <VueInput id="name"
+                      placeholder="Enter user name"
+                      v-model="userToUpdate!.name"
+                      :is-valid="usernameIsValid"></VueInput>
+            <div class="invalid-feedback">
+              Username is required.
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label for="dob" class="form-label">Date of Birth</label>
+            <VueInput id="dob"
+                      v-model="userToUpdate!.dateOfBirth"
+                      placeholder="Enter date of birth"
+                      type="date"
+                      :is-valid="dateOfBirthIsValid"></VueInput>
+            <div class="invalid-feedback">
+              Date of Birth is required and should be less than present.
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label for="email" class="form-label">Email</label>
+            <VueInput :disabled="true"
+                      id="email"
+                      placeholder="Enter email"
+                      :is-valid="emailIsValid"
+                      v-model="userToUpdate!.email"></VueInput>
+            <div class="invalid-feedback">
+              Email is required and should be in valid format.
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label for="phoneNumber" class="form-label">Phone Number</label>
+            <VueInput id="phoneNumber"
+                      v-model="userToUpdate!.phoneNumber"
+                      pattern="^\+?3?8?(0\d{9})$"
+                      placeholder="Enter phone number"
+                      :is-valid="phoneNumberIsValid"></VueInput>
+            <div class="invalid-feedback">
+              Phone Number is required and should be in valid format for Ukraine.
+            </div>
+          </div>
+        </form>
+      </template>
+      <template #footer>
+        <button type="submit" class="btn btn-primary" @click="() => {handleSubmit(); closeUpdateModal();}">Submit</button>
+      </template>
+    </VueModal>
   </div>
 </template>
 

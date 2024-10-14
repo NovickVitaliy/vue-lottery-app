@@ -5,7 +5,11 @@ defineProps<{
   winner: User
 }>();
 
-const emit = defineEmits(['onDelete']);
+const emit = defineEmits({
+  onDelete: (winner: User) => {
+    return winner;
+  }
+});
 </script>
 
 <template>

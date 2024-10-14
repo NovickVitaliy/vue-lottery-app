@@ -1,16 +1,19 @@
 <script setup lang="ts">
 import type {InputType} from "@/models/input-type";
-
-defineProps<{
+withDefaults(defineProps<{
   id: string;
-  class: string;
   type: InputType;
   required?: boolean;
   placeholder: string;
   pattern?: string;
-  disabled?: boolean
-}>();
-
+  disabled?: boolean;
+  isValid: boolean | null;
+}>(), {
+  disabled: false,
+  required: true,
+  type: 'text',
+  pattern: '',
+});
 const model = defineModel();
 </script>
 <template>
@@ -18,10 +21,10 @@ const model = defineModel();
       :id="id"
       v-model="model"
       :placeholder="placeholder"
-      :required="required ?? true"
+      :required="required"
       :type="type"
       class="form-control"
-      :class="class"
-      :pattern="pattern ?? ''"
-      :disabled="disabled ?? false">
+      :class="isValid !== null ? isValid ? 'is-valid' : 'is-invalid' : ''"
+      :pattern="pattern"
+      :disabled="disabled">
 </template>
