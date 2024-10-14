@@ -26,6 +26,7 @@ const deleteUser = (user: User) => {
 const addUser = (user: User) => {
   if(users.value.filter(u => u.email === user.email).length > 0){
     buttonRef.value.click();
+    return;
   }
   users.value.push(user)
   updateUsersInStorage();
