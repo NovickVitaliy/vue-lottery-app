@@ -11491,5 +11491,9 @@ progress {
     display: none !important;
   }
 }
+.link-active {
+  background-color: #0a53be;
+  color: white;
+}
 
 /*# sourceMappingURL=main.css.map */

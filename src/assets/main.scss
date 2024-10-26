@@ -6,3 +6,9 @@
 @import "../../node_modules/bootstrap/scss/modal";
 @import "../../node_modules/bootstrap/scss/reboot";
 @import "../../node_modules/bootstrap/scss/bootstrap-utilities";
+
+
+.link-active {
+  background-color: #0a53be;
+  color: white;
+}
