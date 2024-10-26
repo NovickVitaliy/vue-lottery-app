@@ -12,9 +12,11 @@ const props = defineProps<{
 const refUsers = ref<User[]>([]);
 const userToUpdate = ref<User>({
   email: '',
-  phoneNumber: '',
-  dateOfBirth: null,
-  name: ''
+  name: '',
+  avatar: '',
+  password: '',
+  role: '',
+  id: 0
 });
 
 watch(
@@ -31,9 +33,10 @@ const emit = defineEmits({
   },
   updateUser: (user: User) => {
     return user && user.name.length > 0
-        && user.dateOfBirth && new Date(user.dateOfBirth) < new Date()
-        && /^\+?3?8?(0\d{9})$/.test(user.phoneNumber)
         && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(user.email)
+        && user.password
+        && user.avatar
+        && /^https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&\/=]*)$/.test(user.avatar)
   }
 });
 
@@ -73,10 +76,20 @@ const handleSearch = (query: string) => {
 const isUpdateModalOpen = ref(false);
 const isDeleteModalOpen = ref(false);
 
-const openUpdateModal = () => (isUpdateModalOpen.value = true);
+const openUpdateModal = (email: string) => {
+  console.log("Email")
+  console.log(email);
+  userToUpdate.value = refUsers.value.filter(u => u.email === email)[0];
+  isUpdateModalOpen.value = true;
+}
 const closeUpdateModal = () => (isUpdateModalOpen.value = false);
 
-const openDeleteModal = () => (isDeleteModalOpen.value = true);
+const openDeleteModal = (email: string) => {
+  console.log("Email")
+  console.log(email);
+  userToDelete.value = refUsers.value.filter(u => u.email === email)[0];
+  isDeleteModalOpen.value = true;
+}
 const closeDeleteModal = () => (isDeleteModalOpen.value = false);
 
 const handleSubmit = () => {
@@ -89,9 +102,10 @@ const handleSubmit = () => {
 
 const touchedFields = ref({
   email: false,
-  dateOfBirth: false,
   name: false,
-  phoneNumber: false
+  password: false,
+  avatar: false,
+  role: false
 });
 
 
@@ -105,14 +119,6 @@ const emailIsValid = computed(() => {
   return regex.test(userToUpdate.value!.email);
 });
 
-const phoneNumberIsValid = computed(() => {
-  if (userToUpdate.value!.phoneNumber.length === 0 && !touchedFields.value.phoneNumber) {
-    return null;
-  }
-  const regex = /^\+?3?8?(0\d{9})$/;
-  return regex.test(userToUpdate.value!.phoneNumber);
-})
-
 const usernameIsValid = computed(() => {
   if (userToUpdate.value!.name.length === 0 && !touchedFields.value.name) {
     return null;
@@ -120,25 +126,42 @@ const usernameIsValid = computed(() => {
   return !!userToUpdate.value!.name;
 });
 
-const dateOfBirthIsValid = computed(() => {
-  if (!userToUpdate.value!.dateOfBirth && !touchedFields.value.dateOfBirth) {
+const passwordIsValid = computed(() => {
+  if(userToUpdate.value.password.length === 0 && !touchedFields.value.password){
     return null;
   }
-  return userToUpdate.value!.dateOfBirth && new Date(userToUpdate.value!.dateOfBirth) < new Date();
+  return !!userToUpdate.value.password;
+});
+
+const avatarIsValid = computed(() => {
+  if(userToUpdate.value.avatar.length === 0  && !touchedFields.value.avatar){
+    return null;
+  }
+  return !!userToUpdate.value.avatar && /^https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&\/=]*)$/.test(userToUpdate.value.avatar);
+});
+
+const roleIsValid = computed(() => {
+  if(userToUpdate.value.role.length === 0 && !touchedFields.value.role) {
+    return null;
+  }
+
+  return !!userToUpdate.value.role
+      && (userToUpdate.value.role.toLowerCase() === 'customer'
+          || userToUpdate.value.role.toLowerCase() === 'admin')
 });
 
 function clearValues() {
-  userToUpdate.value!.dateOfBirth = null;
+  userToUpdate.value!.avatar = '';
   userToUpdate.value!.name = '';
-  userToUpdate.value!.phoneNumber = '';
   userToUpdate.value!.email = '';
+  userToUpdate.value!.password = '';
 }
 
 function clearTouchedFields() {
-  touchedFields.value.phoneNumber = false;
+  touchedFields.value.avatar = false;
   touchedFields.value.email = false;
   touchedFields.value.name = false;
-  touchedFields.value.dateOfBirth = false;
+  touchedFields.value.password = false;
 }
 </script>
 
@@ -159,8 +182,9 @@ function clearTouchedFields() {
         <th scope="col">#</th>
         <th scope="col">Name</th>
         <th scope="col">Email</th>
-        <th scope="col">Date Of Birth</th>
-        <th scope="col">Phone Number</th>
+        <th scope="col">Password</th>
+        <th scope="col">Role</th>
+        <th scope="col">Image</th>
         <th scope="col">Options</th>
       </tr>
       </thead>
@@ -169,15 +193,19 @@ function clearTouchedFields() {
         <td>{{ index + 1 }}</td>
         <td>{{ user.name }}</td>
         <td>{{ user.email }}</td>
-        <td>{{ user.dateOfBirth }}</td>
-        <td>{{ user.phoneNumber }}</td>
+        <td>{{ user.password }}</td>
+        <td>{{ user.role }}</td>
+        <td><div style="width: 50px; height: 50px"><img style="width: 100%; height: 100%; object-fit: cover" :src="user.avatar" alt="avatar"></div></td>
         <td>
           <div class="d-flex gap-1">
-            <button @click="() => {userToDelete = user; openDeleteModal();}" type="button" class="btn btn-danger" data-bs-toggle="modal">
+            <button @click="() => openDeleteModal(user.email)" type="button" class="btn btn-danger" data-bs-toggle="modal">
               Delete
             </button>
-            <button @click="() => {userToUpdate = user; openUpdateModal();}" type="button" class="btn btn-success" data-bs-toggle="modal">
+            <button @click="() => openUpdateModal(user.email)" type="button" class="btn btn-success" data-bs-toggle="modal">
               Update
+            </button>
+            <button @click="() => $router.push(`/users/${user.id}`)" type="button" class="btn btn-success">
+              Details
             </button>
           </div>
         </td>
@@ -217,14 +245,14 @@ function clearTouchedFields() {
           </div>
 
           <div class="mb-3">
-            <label for="dob" class="form-label">Date of Birth</label>
-            <VueInput id="dob"
-                      v-model="userToUpdate!.dateOfBirth"
-                      placeholder="Enter date of birth"
-                      type="date"
-                      :is-valid="dateOfBirthIsValid"></VueInput>
+            <label for="password" class="form-label">Password</label>
+            <VueInput id="password"
+                      v-model="userToUpdate!.password"
+                      placeholder="Enter password"
+                      type="text"
+                      :is-valid="passwordIsValid"></VueInput>
             <div class="invalid-feedback">
-              Date of Birth is required and should be less than present.
+              Password is required.
             </div>
           </div>
 
@@ -241,14 +269,24 @@ function clearTouchedFields() {
           </div>
 
           <div class="mb-3">
-            <label for="phoneNumber" class="form-label">Phone Number</label>
-            <VueInput id="phoneNumber"
-                      v-model="userToUpdate!.phoneNumber"
-                      pattern="^\+?3?8?(0\d{9})$"
-                      placeholder="Enter phone number"
-                      :is-valid="phoneNumberIsValid"></VueInput>
+            <label for="avatar" class="form-label">Avatar</label>
+            <VueInput id="avatar"
+                      v-model="userToUpdate!.avatar"
+                      placeholder="Enter avatar URL"
+                      :is-valid="avatarIsValid"></VueInput>
             <div class="invalid-feedback">
-              Phone Number is required and should be in valid format for Ukraine.
+              Avatar must be a valid URL.
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label for="role" class="form-label">Role (admin or customer)</label>
+            <VueInput id="role"
+                      v-model="userToUpdate!.role"
+                      placeholder="Enter role"
+                      :is-valid="roleIsValid"></VueInput>
+            <div class="invalid-feedback">
+              Role is required and must be either 'admin' or 'customer'
             </div>
           </div>
         </form>

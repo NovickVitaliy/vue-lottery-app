@@ -1,29 +1,33 @@
 <script setup lang="ts">
 import {computed, ref} from "vue";
-import type {User} from "@/models/user";
+import type {CreateUserRequest} from "@/models/user";
 import VueButton from "@/components/VueButton.vue";
 import VueInput from "@/components/VueInput.vue";
 
 const touchedFields = ref({
   email: false,
-  dateOfBirth: false,
   name: false,
-  phoneNumber: false
+  avatar: false,
+  password: false,
+  role: false
 });
 
-const user = ref<User>({
+const user = ref<CreateUserRequest>({
   email: '',
-  dateOfBirth: null,
   name: '',
-  phoneNumber: ''
+  avatar: '',
+  password: '',
+  role: ''
 });
 
 const emit = defineEmits({
-  addUser: (user: User) => {
+  addUser: (user: CreateUserRequest) => {
+    user.role = user.role.toLowerCase()
     return user && user.name.length > 0
-        && user.dateOfBirth && new Date(user.dateOfBirth) < new Date()
-        && /^\+?3?8?(0\d{9})$/.test(user.phoneNumber)
         && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(user.email)
+        && user.password
+        && user.avatar
+        && /^https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&\/=]*)$/.test(user.avatar)
   }
 });
 
@@ -37,14 +41,6 @@ const emailIsValid = computed(() => {
   return regex.test(user.value.email);
 });
 
-const phoneNumberIsValid = computed(() => {
-  if (user.value.phoneNumber.length === 0 && !touchedFields.value.phoneNumber) {
-    return null;
-  }
-  const regex = /^\+?3?8?(0\d{9})$/;
-  return regex.test(user.value.phoneNumber);
-})
-
 const usernameIsValid = computed(() => {
   if (user.value.name.length === 0 && !touchedFields.value.name) {
     return null;
@@ -52,25 +48,42 @@ const usernameIsValid = computed(() => {
   return !!user.value.name;
 });
 
-const dateOfBirthIsValid = computed(() => {
-  if (!user.value.dateOfBirth && !touchedFields.value.dateOfBirth) {
+const passwordIsValid = computed(() => {
+    if(user.value.password.length === 0 && !touchedFields.value.password){
+      return null;
+    }
+    return !!user.value.password;
+});
+
+const avatarIsValid = computed(() => {
+  if(user.value.avatar.length === 0  && !touchedFields.value.avatar){
     return null;
   }
-  return user.value.dateOfBirth && new Date(user.value.dateOfBirth) < new Date();
+  return !!user.value.avatar && /^https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&\/=]*)$/.test(user.value.avatar);
+});
+
+const roleIsValid = computed(() => {
+  if(user.value.role.length === 0 && !touchedFields.value.role) {
+    return null;
+  }
+
+  return !!user.value.role
+      && (user.value.role.toLowerCase() === 'customer'
+          || user.value.role.toLowerCase() === 'admin')
 });
 
 function clearValues() {
-  user.value.dateOfBirth = null;
+  user.value.password = '';
   user.value.name = '';
-  user.value.phoneNumber = '';
+  user.value.avatar = '';
   user.value.email = '';
 }
 
 function clearTouchedFields() {
-  touchedFields.value.phoneNumber = false;
+  touchedFields.value.avatar = false;
   touchedFields.value.email = false;
   touchedFields.value.name = false;
-  touchedFields.value.dateOfBirth = false;
+  touchedFields.value.password = false;
 }
 
 const onSubmit = () => {
@@ -93,22 +106,22 @@ const onSubmit = () => {
                   id="name"
                   placeholder="Enter user name"
                   v-model="user.name"
-                  @blur="touchedFields.name = true"></VueInput>
+                  @blur="touchedFields.name"></VueInput>
         <div class="invalid-feedback">
           Username is required.
         </div>
       </div>
 
       <div class="mb-3">
-        <label for="dob" class="form-label">Date of Birth</label>
-        <VueInput id="dob"
-                  :is-valid="dateOfBirthIsValid"
-                  v-model="user.dateOfBirth"
-                  placeholder="Enter date of birth"
-                  type="date"
-                  @blur="touchedFields.dateOfBirth = true"></VueInput>
+        <label for="password" class="form-label">Password</label>
+        <VueInput id="password"
+                  :is-valid="passwordIsValid"
+                  v-model="user.password"
+                  placeholder="Enter password"
+                  type="text"
+                  @blur="touchedFields.password"></VueInput>
         <div class="invalid-feedback">
-          Date of Birth is required and should be less than present.
+          Password is required.
         </div>
       </div>
 
@@ -118,22 +131,33 @@ const onSubmit = () => {
                   :is-valid="emailIsValid"
                   placeholder="Enter email"
                   v-model="user.email"
-                  @blur="touchedFields.email = true"></VueInput>
+                  @blur="touchedFields.email"></VueInput>
         <div class="invalid-feedback">
           Email is required and should be in valid format.
         </div>
       </div>
 
       <div class="mb-3">
-        <label for="phoneNumber" class="form-label">Phone Number</label>
-        <VueInput id="phoneNumber"
-                  :is-valid="phoneNumberIsValid"
-                  v-model="user.phoneNumber"
-                  pattern="^\+?3?8?(0\d{9})$"
-                  placeholder="Enter phone number"
-                  @blur="touchedFields.phoneNumber = true"></VueInput>
+        <label for="role" class="form-label">Role (customer or admin)</label>
+        <VueInput id="role"
+                  :is-valid="roleIsValid"
+                  placeholder="Choose role"
+                  v-model="user.role"
+                  @blur="touchedFields.role"></VueInput>
         <div class="invalid-feedback">
-          Phone Number is required and should be in valid format for Ukraine.
+          Role is required and should be either 'admin' or 'customer'
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label for="avatar" class="form-label">Avatar</label>
+        <VueInput id="avatar"
+                  :is-valid="avatarIsValid"
+                  v-model="user.avatar"
+                  placeholder="Enter avatar URL"
+                  @blur="touchedFields.avatar"></VueInput>
+        <div class="invalid-feedback">
+          Avatar is required and should be a valid url.
         </div>
       </div>
 

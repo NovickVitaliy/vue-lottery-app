@@ -1,6 +1,16 @@
-export interface User {
+export interface CreateUserRequest {
     name: string;
-    dateOfBirth: Date | null;
     email: string;
-    phoneNumber: string;
+    password: string;
+    avatar: string;
+    role: string;
+}
+
+export interface User {
+    id: number;
+    role: string;
+    name: string;
+    email: string;
+    password: string;
+    avatar: string;
 }
